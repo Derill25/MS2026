@@ -322,12 +322,14 @@ function vTour(){
   html+=`</table></div>
   <div class="box"><h2>Skutočný výsledok turnaja (vyplniť na konci)</h2>
     <div class="row" style="margin-bottom:8px"><label style="min-width:130px">Majster sveta:</label>
-    <select onchange="S.tour.winner=this.value;save();render()">${opts(S.tour.winner)}</select></div>
+    <select onchange="setTourWinner(this.value)">${opts(S.tour.winner)}</select></div>
     <div class="row"><label style="min-width:130px">Najlepší strelci:</label>
-    <input style="flex:1" placeholder="mená oddelené čiarkou (ak ich je viac)" value="${esc(S.tour.scorers)}" onchange="S.tour.scorers=this.value;save();render()"></div></div>`;
+    <input style="flex:1" placeholder="mená oddelené čiarkou (ak ich je viac)" value="${esc(S.tour.scorers)}" onchange="setTourScorers(this.value)"></div></div>`;
   return html;
 }
 function setTour(p,k,v){const t=S.tour.tips[p]||{};t[k]=v;S.tour.tips[p]=t;save();render()}
+function setTourWinner(v){S.tour.winner=v;save();render()}
+function setTourScorers(v){S.tour.scorers=v;save();render()}
 
 // ---- Rebríček ----
 function vBoard(){
@@ -363,7 +365,7 @@ function addPlayer(){
   S.players.push(v);save();render();
 }
 function delPlayer(p){
-  if(!confirm(`Odstrániť hráča „${p}" aj so všetkými jeho tipmi?`))return;
+  if(!confirm('Odstrániť hráča „'+p+'" aj so všetkými jeho tipmi?'))return;
   S.players=S.players.filter(x=>x!==p);
   for(const id in S.tips)delete S.tips[id][p];
   delete S.tour.tips[p];
@@ -374,7 +376,7 @@ function delPlayer(p){
 function vData(){
   const n=Object.keys(S.results).length;
   return `<div class="box"><h2>Záloha dát</h2>
-    <p class="note">Dáta sa ukladajú v tomto prehliadači automaticky. Na prenos do iného počítača alebo pre istotu si pravidelne sťahuj zálohu.</p>
+    <p class="note">Dáta sa ukladajú v tomto prehliadači automaticky. Na prenos do iného zariadenia alebo pre istotu si pravidelne sťahuj zálohu.</p>
     <div class="row"><button class="btn" onclick="expData()">⬇ Stiahnuť zálohu (JSON)</button>
     <label class="btn sec" style="cursor:pointer">⬆ Nahrať zálohu<input type="file" accept=".json" style="display:none" onchange="impData(this)"></label></div>
     <p class="note">${S.players.length} hráčov · ${n} zápasov s výsledkom</p></div>
@@ -392,4 +394,27 @@ function expData(){
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
   a.download='ms2026-tipovacka-zaloha-'+new Date().toISOString().slice(0,10)+'.json';
-  a.
+  a.click();
+}
+function impData(inp){
+  const f=inp.files[0];if(!f)return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      const d=JSON.parse(rd.result);
+      if(!d.players||!d.tour)throw 0;
+      if(confirm('Nahradiť všetky aktuálne dáta zálohou?')){S=d;save();render()}
+    }catch(e){alert('Neplatný súbor zálohy.')}
+  };
+  rd.readAsText(f);
+}
+function wipe(){
+  if(confirm('Naozaj vymazať VŠETKY dáta (hráčov, tipy aj výsledky)?')&&confirm('Posledné varovanie – dáta sa nedajú obnoviť. Pokračovať?')){
+    localStorage.removeItem(LS);S=load();render();
+  }
+}
+window.setTab=setTab;window.setFilter=setFilter;window.toggle=toggle;window.setKoTeam=setKoTeam;window.setRes=setRes;window.clearRes=clearRes;window.setTip=setTip;window.setTour=setTour;window.setTourWinner=setTourWinner;window.setTourScorers=setTourScorers;window.addPlayer=addPlayer;window.delPlayer=delPlayer;window.expData=expData;window.impData=impData;window.wipe=wipe;
+render();
+</script>
+</body>
+</html>
