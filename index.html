@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1e3a5f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MS 2026">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>⚽</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%231e3a5f'/><text x='50' y='72' font-size='60' text-anchor='middle'>⚽</text></svg>">
+<title>MS 2026 – Tipovačka</title>
+<style>
+:root{--bg:#f1f5f9;--card:#fff;--ink:#0f172a;--mut:#64748b;--acc:#15803d;--acc2:#1e3a5f;--bord:#e2e8f0;--gold:#ca8a04;--red:#dc2626}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:15px}
+header{background:var(--acc2);color:#fff;padding:14px 16px 0;position:sticky;top:0;z-index:50}
+header h1{font-size:18px;margin-bottom:10px}
+nav{display:flex;gap:4px;overflow-x:auto}
+nav button{background:transparent;border:none;color:#cbd5e1;padding:10px 14px;font-size:14px;cursor:pointer;border-radius:8px 8px 0 0;white-space:nowrap}
+nav button.act{background:var(--bg);color:var(--ink);font-weight:600}
+main{max-width:880px;margin:0 auto;padding:14px 10px 60px}
+.card{background:var(--card);border:1px solid var(--bord);border-radius:10px;margin-bottom:10px;overflow:hidden}
+.mhead{display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;flex-wrap:wrap}
+.mhead:hover{background:#f8fafc}
+.badge{font-size:11px;font-weight:700;padding:2px 7px;border-radius:99px;background:#e2e8f0;color:#334155;white-space:nowrap}
+.badge.ko{background:#fef3c7;color:#92400e}
+.teams{font-weight:600;flex:1;min-width:180px}
+.score{font-weight:700;color:var(--acc);white-space:nowrap}
+.when{font-size:12px;color:var(--mut);white-space:nowrap}
+.mbody{border-top:1px solid var(--bord);padding:12px}
+.sect{font-size:12px;font-weight:700;text-transform:uppercase;color:var(--mut);margin:10px 0 6px}
+.sect:first-child{margin-top:0}
+input,select{border:1px solid #cbd5e1;border-radius:7px;padding:7px 9px;font-size:14px;background:#fff;color:var(--ink)}
+input.g{width:46px;text-align:center}
+input.sc{width:100%}
+table{width:100%;border-collapse:collapse}
+td,th{padding:6px 6px;text-align:left;border-bottom:1px solid var(--bord);font-size:14px;vertical-align:middle}
+th{font-size:12px;color:var(--mut);text-transform:uppercase}
+.pts{font-weight:700;color:var(--acc);white-space:nowrap}
+.pts.zero{color:#94a3b8}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{background:var(--acc);color:#fff;border:none;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer}
+.btn.sec{background:#e2e8f0;color:var(--ink)}
+.btn.danger{background:var(--red)}
+.btn.sm{padding:5px 10px;font-size:13px}
+.chips{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px}
+.chip{border:1px solid #cbd5e1;background:#fff;border-radius:99px;padding:6px 13px;font-size:13px;cursor:pointer;white-space:nowrap}
+.chip.act{background:var(--acc2);color:#fff;border-color:var(--acc2)}
+.dateh{font-size:13px;font-weight:700;color:var(--acc2);margin:16px 4px 8px;text-transform:capitalize}
+.note{font-size:13px;color:var(--mut);margin:8px 0}
+.box{background:var(--card);border:1px solid var(--bord);border-radius:10px;padding:14px;margin-bottom:12px}
+h2{font-size:16px;margin-bottom:10px}
+.rank1{background:#fef9c3}
+.search{width:100%;margin-bottom:10px}
+.del{background:none;border:none;color:var(--red);cursor:pointer;font-size:16px}
+.muted{color:var(--mut);font-size:13px}
+@media(max-width:560px){td,th{padding:5px 3px;font-size:13px}input.g{width:38px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>⚽ MS 2026 – Tipovačka</h1>
+  <nav id="nav"></nav>
+</header>
+<main id="app"></main>
+<script>
+'use strict';
+// ---------- DÁTA: 104 zápasov MS 2026 (časy v UTC, zobrazujú sa v lokálnom čase) ----------
+// [id, štádium, skupina, UTC čas, domáci, hostia, mesto]
+const M=[
+[1,"G","A","2026-06-11T19:00Z","Mexiko","Južná Afrika","Mexico City"],
+[2,"G","A","2026-06-12T02:00Z","Kórejská rep.","Česko","Guadalajara"],
+[3,"G","B","2026-06-12T19:00Z","Kanada","Bosna a Herc.","Toronto"],
+[4,"G","D","2026-06-13T01:00Z","USA","Paraguaj","Los Angeles"],
+[5,"G","B","2026-06-13T19:00Z","Katar","Švajčiarsko","San Francisco"],
+[6,"G","C","2026-06-13T22:00Z","Brazília","Maroko","New York/NJ"],
+[7,"G","C","2026-06-14T01:00Z","Haiti","Škótsko","Boston"],
+[8,"G","D","2026-06-14T04:00Z","Austrália","Turecko","Vancouver"],
+[9,"G","E","2026-06-14T17:00Z","Nemecko","Curaçao","Houston"],
+[10,"G","F","2026-06-14T20:00Z","Holandsko","Japonsko","Dallas"],
+[11,"G","E","2026-06-14T23:00Z","Pobrežie Slonoviny","Ekvádor","Philadelphia"],
+[12,"G","F","2026-06-15T02:00Z","Švédsko","Tunisko","Monterrey"],
+[13,"G","H","2026-06-15T16:00Z","Španielsko","Kapverdy","Atlanta"],
+[14,"G","G","2026-06-15T19:00Z","Belgicko","Egypt","Vancouver"],
+[15,"G","H","2026-06-15T22:00Z","Saudská Arábia","Uruguaj","Miami"],
+[16,"G","G","2026-06-16T01:00Z","Irán","Nový Zéland","Los Angeles"],
+[17,"G","I","2026-06-16T19:00Z","Francúzsko","Senegal","New York/NJ"],
+[18,"G","I","2026-06-16T22:00Z","Irak","Nórsko","Boston"],
+[19,"G","J","2026-06-17T01:00Z","Argentína","Alžírsko","Kansas City"],
+[20,"G","J","2026-06-17T04:00Z","Rakúsko","Jordánsko","San Francisco"],
+[21,"G","K","2026-06-17T17:00Z","Portugalsko","DR Kongo","Houston"],
+[22,"G","L","2026-06-17T20:00Z","Anglicko","Chorvátsko","Dallas"],
+[23,"G","L","2026-06-17T23:00Z","Ghana","Panama","Toronto"],
+[24,"G","K","2026-06-18T02:00Z","Uzbekistan","Kolumbia","Mexico City"],
+[25,"G","A","2026-06-18T16:00Z","Česko","Južná Afrika","Atlanta"],
+[26,"G","B","2026-06-18T19:00Z","Švajčiarsko","Bosna a Herc.","Los Angeles"],
+[27,"G","B","2026-06-18T22:00Z","Kanada","Katar","Vancouver"],
+[28,"G","A","2026-06-19T01:00Z","Mexiko","Kórejská rep.","Guadalajara"],
+[29,"G","D","2026-06-19T19:00Z","USA","Austrália","Seattle"],
+[30,"G","C","2026-06-19T22:00Z","Škótsko","Maroko","Boston"],
+[31,"G","C","2026-06-20T00:30Z","Brazília","Haiti","Philadelphia"],
+[32,"G","D","2026-06-20T03:00Z","Turecko","Paraguaj","San Francisco"],
+[33,"G","F","2026-06-20T17:00Z","Holandsko","Švédsko","Houston"],
+[34,"G","E","2026-06-20T20:00Z","Nemecko","Pobrežie Slonoviny","Toronto"],
+[35,"G","E","2026-06-21T03:00Z","Ekvádor","Curaçao","Kansas City"],
+[36,"G","F","2026-06-21T04:00Z","Tunisko","Japonsko","Monterrey"],
+[37,"G","H","2026-06-21T16:00Z","Španielsko","Saudská Arábia","Atlanta"],
+[38,"G","G","2026-06-21T19:00Z","Belgicko","Irán","Los Angeles"],
+[39,"G","H","2026-06-21T22:00Z","Uruguaj","Kapverdy","Miami"],
+[40,"G","G","2026-06-22T01:00Z","Nový Zéland","Egypt","Vancouver"],
+[41,"G","J","2026-06-22T17:00Z","Argentína","Rakúsko","Dallas"],
+[42,"G","I","2026-06-22T21:00Z","Francúzsko","Irak","Philadelphia"],
+[43,"G","I","2026-06-23T00:00Z","Nórsko","Senegal","New York/NJ"],
+[44,"G","J","2026-06-23T03:00Z","Jordánsko","Alžírsko","San Francisco"],
+[45,"G","K","2026-06-23T17:00Z","Portugalsko","Uzbekistan","Houston"],
+[46,"G","L","2026-06-23T20:00Z","Anglicko","Ghana","Boston"],
+[47,"G","L","2026-06-23T23:00Z","Panama","Chorvátsko","Toronto"],
+[48,"G","K","2026-06-24T02:00Z","Kolumbia","DR Kongo","Guadalajara"],
+[49,"G","B","2026-06-24T19:00Z","Švajčiarsko","Kanada","Vancouver"],
+[50,"G","B","2026-06-24T19:00Z","Bosna a Herc.","Katar","Seattle"],
+[51,"G","C","2026-06-24T22:00Z","Škótsko","Brazília","Miami"],
+[52,"G","C","2026-06-24T22:00Z","Maroko","Haiti","Atlanta"],
+[53,"G","A","2026-06-25T01:00Z","Česko","Mexiko","Mexico City"],
+[54,"G","A","2026-06-25T01:00Z","Južná Afrika","Kórejská rep.","Monterrey"],
+[55,"G","E","2026-06-25T20:00Z","Ekvádor","Nemecko","New York/NJ"],
+[56,"G","E","2026-06-25T20:00Z","Curaçao","Pobrežie Slonoviny","Philadelphia"],
+[57,"G","F","2026-06-25T23:00Z","Japonsko","Švédsko","Dallas"],
+[58,"G","F","2026-06-25T23:00Z","Tunisko","Holandsko","Kansas City"],
+[59,"G","D","2026-06-26T02:00Z","Turecko","USA","Los Angeles"],
+[60,"G","D","2026-06-26T02:00Z","Paraguaj","Austrália","San Francisco"],
+[61,"G","I","2026-06-26T19:00Z","Nórsko","Francúzsko","Boston"],
+[62,"G","I","2026-06-26T19:00Z","Senegal","Irak","Toronto"],
+[63,"G","H","2026-06-27T00:00Z","Kapverdy","Saudská Arábia","Houston"],
+[64,"G","H","2026-06-27T00:00Z","Uruguaj","Španielsko","Guadalajara"],
+[65,"G","G","2026-06-27T03:00Z","Egypt","Irán","Seattle"],
+[66,"G","G","2026-06-27T03:00Z","Nový Zéland","Belgicko","Vancouver"],
+[67,"G","L","2026-06-27T21:00Z","Panama","Anglicko","New York/NJ"],
+[68,"G","L","2026-06-27T21:00Z","Chorvátsko","Ghana","Philadelphia"],
+[69,"G","K","2026-06-27T23:30Z","Kolumbia","Portugalsko","Miami"],
+[70,"G","K","2026-06-27T23:30Z","DR Kongo","Uzbekistan","Atlanta"],
+[71,"G","J","2026-06-28T02:00Z","Alžírsko","Rakúsko","Kansas City"],
+[72,"G","J","2026-06-28T02:00Z","Jordánsko","Argentína","Dallas"],
+[73,"R32",null,"2026-06-28T19:00Z","","","Los Angeles"],
+[74,"R32",null,"2026-06-29T19:00Z","","","Houston"],
+[75,"R32",null,"2026-06-29T20:30Z","","","Boston"],
+[76,"R32",null,"2026-06-30T01:00Z","","","Monterrey"],
+[77,"R32",null,"2026-06-30T17:00Z","","","Dallas"],
+[78,"R32",null,"2026-06-30T21:00Z","","","New York/NJ"],
+[79,"R32",null,"2026-07-01T01:00Z","","","Mexico City"],
+[80,"R32",null,"2026-07-01T16:00Z","","","Atlanta"],
+[81,"R32",null,"2026-07-01T20:00Z","","","Seattle"],
+[82,"R32",null,"2026-07-02T00:00Z","","","San Francisco"],
+[83,"R32",null,"2026-07-02T19:00Z","","","Los Angeles"],
+[84,"R32",null,"2026-07-02T23:00Z","","","Toronto"],
+[85,"R32",null,"2026-07-03T03:00Z","","","Vancouver"],
+[86,"R32",null,"2026-07-03T18:00Z","","","Dallas"],
+[87,"R32",null,"2026-07-03T22:00Z","","","Miami"],
+[88,"R32",null,"2026-07-04T01:30Z","","","Kansas City"],
+[89,"R16",null,"2026-07-04T17:00Z","","","Houston"],
+[90,"R16",null,"2026-07-04T21:00Z","","","Philadelphia"],
+[91,"R16",null,"2026-07-05T20:00Z","","","New York/NJ"],
+[92,"R16",null,"2026-07-06T00:00Z","","","Mexico City"],
+[93,"R16",null,"2026-07-06T19:00Z","","","Dallas"],
+[94,"R16",null,"2026-07-07T00:00Z","","","Seattle"],
+[95,"R16",null,"2026-07-07T16:00Z","","","Atlanta"],
+[96,"R16",null,"2026-07-07T20:00Z","","","Vancouver"],
+[97,"QF",null,"2026-07-09T20:00Z","","","Boston"],
+[98,"QF",null,"2026-07-10T19:00Z","","","Los Angeles"],
+[99,"QF",null,"2026-07-11T21:00Z","","","Miami"],
+[100,"QF",null,"2026-07-12T01:00Z","","","Kansas City"],
+[101,"SF",null,"2026-07-14T19:00Z","","","Dallas"],
+[102,"SF",null,"2026-07-15T19:00Z","","","Atlanta"],
+[103,"3RD",null,"2026-07-18T21:00Z","","","Miami"],
+[104,"F",null,"2026-07-19T19:00Z","","","New York/NJ"]
+];
+const STAGE={G:"Skupina",R32:"Šestnásťfinále",R16:"Osemfinále",QF:"Štvrťfinále",SF:"Semifinále","3RD":"O 3. miesto",F:"Finále"};
+const TEAMS=[...new Set(M.filter(m=>m[1]==="G").flatMap(m=>[m[4],m[5]]))].sort((a,b)=>a.localeCompare(b,'sk'));
+
+// ---------- STAV ----------
+const LS='ms2026tipy_v1';
+let S=load();
+function load(){
+  try{const d=JSON.parse(localStorage.getItem(LS));if(d&&d.players)return d}catch(e){}
+  return {players:[],koTeams:{},results:{},tips:{},tour:{tips:{},winner:'',scorers:''}};
+}
+function save(){localStorage.setItem(LS,JSON.stringify(S))}
+
+// ---------- POMOCNÉ ----------
+const norm=s=>(s||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+const esc=s=>(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function teamsOf(m){if(m[1]==="G")return[m[4],m[5]];const t=S.koTeams[m[0]]||['',''];return[t[0]||'',t[1]||'']}
+function scorerHit(tip,scorers){
+  const t=norm(tip);if(!t)return false;
+  return scorers.split(',').map(norm).filter(Boolean).some(s=>s===t||s.includes(t)||t.includes(s));
+}
+// Bodovanie: presný výsledok 3 b (inak správny víťaz/remíza 1 b) + strelec v zápase 2 b
+function matchPts(mid,player){
+  const r=S.results[mid];
+  if(!r||r.h===''||r.h==null||r.a===''||r.a==null)return null;
+  const tp=(S.tips[mid]||{})[player];
+  const d={w:0,e:0,s:0,p:0};
+  if(tp&&tp.h!==''&&tp.h!=null&&tp.a!==''&&tp.a!=null){
+    const th=+tp.h,ta=+tp.a,rh=+r.h,ra=+r.a;
+    if(th===rh&&ta===ra){d.e=1;d.p+=3}
+    else if(Math.sign(th-ta)===Math.sign(rh-ra)){d.w=1;d.p+=1}
+  }
+  if(tp&&tp.s&&r.sc&&scorerHit(tp.s,r.sc)){d.s=1;d.p+=2}
+  return d;
+}
+function totals(player){
+  const t={matches:0,w:0,e:0,s:0,bw:0,bs:0,total:0};
+  for(const m of M){const d=matchPts(m[0],player);if(d){t.matches+=d.p;t.w+=d.w;t.e+=d.e;t.s+=d.s}}
+  const tt=S.tour.tips[player]||{};
+  if(S.tour.winner&&tt.winner&&norm(tt.winner)===norm(S.tour.winner))t.bw=10;
+  if(S.tour.scorers&&tt.scorer&&scorerHit(tt.scorer,S.tour.scorers))t.bs=8;
+  t.total=t.matches+t.bw+t.bs;
+  return t;
+}
+function fmtDate(iso){const d=new Date(iso);return d.toLocaleDateString('sk-SK',{weekday:'long',day:'numeric',month:'numeric'})}
+function fmtTime(iso){const d=new Date(iso);return d.toLocaleTimeString('sk-SK',{hour:'2-digit',minute:'2-digit'})}
+
+// ---------- UI ----------
+let TAB='matches',FILTER='upcoming',Q='',OPEN=new Set();
+const TABS=[['matches','Zápasy'],['tour','Turnaj'],['board','Rebríček'],['players','Hráči'],['data','Dáta']];
+const $=id=>document.getElementById(id);
+
+function renderNav(){
+  $('nav').innerHTML=TABS.map(([k,l])=>`<button class="${TAB===k?'act':''}" onclick="setTab('${k}')">${l}</button>`).join('');
+}
+function setTab(t){TAB=t;render()}
+function setFilter(f){FILTER=f;render()}
+function render(){
+  renderNav();
+  const app=$('app');
+  if(TAB==='matches')app.innerHTML=vMatches();
+  else if(TAB==='tour')app.innerHTML=vTour();
+  else if(TAB==='board')app.innerHTML=vBoard();
+  else if(TAB==='players')app.innerHTML=vPlayers();
+  else app.innerHTML=vData();
+}
+
+// ---- Zápasy ----
+function vMatches(){
+  if(!S.players.length)return `<div class="box"><h2>Najprv pridaj hráčov</h2><p class="note">Prejdi na záložku <b>Hráči</b> a pridaj tipujúcich.</p></div>`;
+  const now=Date.now();
+  let list=M.filter(m=>{
+    if(FILTER==='today'){const d=new Date(m[3]),n=new Date();if(d.toDateString()!==n.toDateString())return false}
+    if(FILTER==='upcoming'&&new Date(m[3]).getTime()<now-5*3600e3&&S.results[m[0]])return false;
+    if(FILTER==='noresult'&&S.results[m[0]])return false;
+    if(FILTER==='ko'&&m[1]==='G')return false;
+    if(Q){const[h,a]=teamsOf(m);const q=norm(Q);if(!norm(h).includes(q)&&!norm(a).includes(q)&&!norm(m[6]).includes(q))return false}
+    return true;
+  });
+  const chips=[['upcoming','Aktuálne'],['today','Dnes'],['noresult','Bez výsledku'],['ko','Playoff'],['all','Všetky']]
+    .map(([k,l])=>`<button class="chip ${FILTER===k?'act':''}" onclick="setFilter('${k}')">${l}</button>`).join('');
+  let html=`<input class="search" placeholder="Hľadať tím alebo mesto…" value="${esc(Q)}" onchange="Q=this.value;render()">`+
+    `<div class="chips">${chips}</div>`;
+  if(!list.length)html+=`<p class="note">Žiadne zápasy pre tento filter.</p>`;
+  let lastDay='';
+  for(const m of list){
+    const day=fmtDate(m[3]);
+    if(day!==lastDay){html+=`<div class="dateh">${day}</div>`;lastDay=day}
+    html+=vMatchCard(m);
+  }
+  return html;
+}
+function vMatchCard(m){
+  const id=m[0],[h,a]=teamsOf(m),r=S.results[id],open=OPEN.has(id);
+  const badge=m[1]==='G'?`<span class="badge">Sk. ${m[2]}</span>`:`<span class="badge ko">${STAGE[m[1]]}</span>`;
+  const hn=h||'<i style="color:#94a3b8">doplniť</i>',an=a||'<i style="color:#94a3b8">doplniť</i>';
+  const score=r&&r.h!==''&&r.h!=null?`<span class="score">${r.h}:${r.a}</span>`:`<span class="when">${fmtTime(m[3])}</span>`;
+  const tipCnt=Object.values(S.tips[id]||{}).filter(t=>t&&t.h!==''&&t.h!=null).length;
+  let html=`<div class="card"><div class="mhead" onclick="toggle(${id})">${badge}<span class="teams">${hn} – ${an}</span>${score}<span class="when">${m[6]} · ${tipCnt}/${S.players.length} tipov</span></div>`;
+  if(open){
+    html+=`<div class="mbody">`;
+    if(m[1]!=='G'){
+      html+=`<div class="sect">Tímy (doplň po žrebe/postupe)</div><div class="row">
+        <input style="flex:1" placeholder="Domáci" value="${esc(h)}" onchange="setKoTeam(${id},0,this.value)">
+        <input style="flex:1" placeholder="Hostia" value="${esc(a)}" onchange="setKoTeam(${id},1,this.value)"></div>`;
+    }
+    html+=`<div class="sect">Výsledok zápasu</div><div class="row">
+      <input class="g" type="number" min="0" placeholder="–" value="${r?esc(String(r.h??'')):''}" onchange="setRes(${id},'h',this.value)"> :
+      <input class="g" type="number" min="0" placeholder="–" value="${r?esc(String(r.a??'')):''}" onchange="setRes(${id},'a',this.value)">
+      <input style="flex:1;min-width:160px" placeholder="Strelci gólov (oddeliť čiarkou)" value="${r?esc(r.sc||''):''}" onchange="setRes(${id},'sc',this.value)">
+      ${r?`<button class="btn sec sm" onclick="clearRes(${id})">Vymazať</button>`:''}</div>
+      <div class="sect">Tipy hráčov</div>
+      <table><tr><th>Hráč</th><th>Tip</th><th>Strelec</th><th>Body</th></tr>`;
+    for(const p of S.players){
+      const tp=(S.tips[id]||{})[p]||{},d=matchPts(id,p);
+      const pts=d==null?'<span class="muted">–</span>':`<span class="pts ${d.p?'':'zero'}">${d.p} b${d.p?` (${[d.e?'presný':'',d.w?'víťaz':'',d.s?'strelec':''].filter(Boolean).join('+')})`:''}</span>`;
+      html+=`<tr><td><b>${esc(p)}</b></td>
+        <td style="white-space:nowrap"><input class="g" type="number" min="0" placeholder="–" value="${tp.h??''}" onchange="setTip(${id},'${esc(p)}','h',this.value)"> : <input class="g" type="number" min="0" placeholder="–" value="${tp.a??''}" onchange="setTip(${id},'${esc(p)}','a',this.value)"></td>
+        <td><input class="sc" placeholder="strelec" value="${esc(tp.s||'')}" onchange="setTip(${id},'${esc(p)}','s',this.value)"></td>
+        <td>${pts}</td></tr>`;
+    }
+    html+=`</table></div>`;
+  }
+  return html+`</div>`;
+}
+function toggle(id){OPEN.has(id)?OPEN.delete(id):OPEN.add(id);render()}
+function setKoTeam(id,i,v){const t=S.koTeams[id]||['',''];t[i]=v.trim();S.koTeams[id]=t;save();render()}
+function setRes(id,k,v){const r=S.results[id]||{h:'',a:'',sc:''};r[k]=k==='sc'?v:(v===''?'':+v);S.results[id]=r;save();render()}
+function clearRes(id){if(confirm('Vymazať výsledok zápasu?')){delete S.results[id];save();render()}}
+function setTip(id,p,k,v){const t=S.tips[id]||{};const tp=t[p]||{h:'',a:'',s:''};tp[k]=k==='s'?v:(v===''?'':+v);t[p]=tp;S.tips[id]=t;save();render()}
+
+// ---- Turnaj ----
+function vTour(){
+  if(!S.players.length)return `<div class="box"><h2>Najprv pridaj hráčov</h2><p class="note">Prejdi na záložku <b>Hráči</b>.</p></div>`;
+  const opts=sel=>`<option value="">–</option>`+TEAMS.map(t=>`<option ${t===sel?'selected':''}>${t}</option>`).join('');
+  let html=`<div class="box"><h2>Tipy pred turnajom</h2>
+    <p class="note">Celkový víťaz = <b>10 bodov</b>, najlepší strelec turnaja = <b>8 bodov</b>.</p>
+    <table><tr><th>Hráč</th><th>Majster sveta</th><th>Najlepší strelec</th><th>Body</th></tr>`;
+  for(const p of S.players){
+    const tt=S.tour.tips[p]||{},t=totals(p);
+    const b=(t.bw?`+10`:'')+(t.bs?` +8`:'');
+    html+=`<tr><td><b>${esc(p)}</b></td>
+      <td><select onchange="setTour('${esc(p)}','winner',this.value)">${opts(tt.winner||'')}</select></td>
+      <td><input placeholder="meno hráča" value="${esc(tt.scorer||'')}" onchange="setTour('${esc(p)}','scorer',this.value)"></td>
+      <td class="pts">${b||'<span class="muted">–</span>'}</td></tr>`;
+  }
+  html+=`</table></div>
+  <div class="box"><h2>Skutočný výsledok turnaja (vyplniť na konci)</h2>
+    <div class="row" style="margin-bottom:8px"><label style="min-width:130px">Majster sveta:</label>
+    <select onchange="S.tour.winner=this.value;save();render()">${opts(S.tour.winner)}</select></div>
+    <div class="row"><label style="min-width:130px">Najlepší strelci:</label>
+    <input style="flex:1" placeholder="mená oddelené čiarkou (ak ich je viac)" value="${esc(S.tour.scorers)}" onchange="S.tour.scorers=this.value;save();render()"></div></div>`;
+  return html;
+}
+function setTour(p,k,v){const t=S.tour.tips[p]||{};t[k]=v;S.tour.tips[p]=t;save();render()}
+
+// ---- Rebríček ----
+function vBoard(){
+  if(!S.players.length)return `<div class="box"><h2>Žiadni hráči</h2></div>`;
+  const rows=S.players.map(p=>({p,...totals(p)})).sort((a,b)=>b.total-a.total);
+  let html=`<div class="box"><h2>🏆 Rebríček</h2>
+    <table><tr><th>#</th><th>Hráč</th><th>Víťaz<br>(1 b)</th><th>Presný<br>(3 b)</th><th>Strelec<br>(2 b)</th><th>Bonus</th><th>Spolu</th></tr>`;
+  rows.forEach((r,i)=>{
+    html+=`<tr class="${i===0&&r.total>0?'rank1':''}"><td>${i+1}.</td><td><b>${esc(r.p)}</b></td>
+      <td>${r.w}×</td><td>${r.e}×</td><td>${r.s}×</td><td>${r.bw+r.bs||0}</td><td class="pts">${r.total}</td></tr>`;
+  });
+  html+=`</table><p class="note">Presný výsledok = 3 b (víťaz sa už nepočíta). Správny víťaz/remíza = 1 b. Strelec v zápase = 2 b (počíta sa nezávisle, max 5 b za zápas).</p></div>`;
+  return html;
+}
+
+// ---- Hráči ----
+function vPlayers(){
+  let html=`<div class="box"><h2>Hráči</h2>
+    <div class="row" style="margin-bottom:12px"><input id="np" style="flex:1" placeholder="Meno nového hráča">
+    <button class="btn" onclick="addPlayer()">Pridať</button></div>`;
+  if(!S.players.length)html+=`<p class="note">Zatiaľ žiadni hráči.</p>`;
+  else{
+    html+=`<table>`;
+    for(const p of S.players)html+=`<tr><td><b>${esc(p)}</b></td><td style="text-align:right"><button class="del" onclick="delPlayer('${esc(p)}')">✕ odstrániť</button></td></tr>`;
+    html+=`</table>`;
+  }
+  return html+`</div>`;
+}
+function addPlayer(){
+  const v=$('np').value.trim();
+  if(!v)return;
+  if(S.players.some(p=>norm(p)===norm(v))){alert('Hráč s týmto menom už existuje.');return}
+  S.players.push(v);save();render();
+}
+function delPlayer(p){
+  if(!confirm(`Odstrániť hráča „${p}" aj so všetkými jeho tipmi?`))return;
+  S.players=S.players.filter(x=>x!==p);
+  for(const id in S.tips)delete S.tips[id][p];
+  delete S.tour.tips[p];
+  save();render();
+}
+
+// ---- Dáta ----
+function vData(){
+  const n=Object.keys(S.results).length;
+  return `<div class="box"><h2>Záloha dát</h2>
+    <p class="note">Dáta sa ukladajú v tomto prehliadači automaticky. Na prenos do iného počítača alebo pre istotu si pravidelne sťahuj zálohu.</p>
+    <div class="row"><button class="btn" onclick="expData()">⬇ Stiahnuť zálohu (JSON)</button>
+    <label class="btn sec" style="cursor:pointer">⬆ Nahrať zálohu<input type="file" accept=".json" style="display:none" onchange="impData(this)"></label></div>
+    <p class="note">${S.players.length} hráčov · ${n} zápasov s výsledkom</p></div>
+    <div class="box"><h2>Pravidlá bodovania</h2>
+    <p class="note">• Správny víťaz zápasu (alebo remíza): <b>1 bod</b><br>
+    • Presný výsledok: <b>3 body</b> (nahrádza bod za víťaza)<br>
+    • Uhádnutý strelec v zápase: <b>2 body</b> (nezávisle od výsledku)<br>
+    • Celkový víťaz turnaja: <b>10 bodov</b> · Najlepší strelec turnaja: <b>8 bodov</b><br>
+    • Tipy sa zadávajú vždy pred zápasom. Pri playoff sa počíta výsledok tak, ako ho zapíše zapisovateľ (dohodnite sa, či po predĺžení/penaltách).</p></div>
+    <div class="box"><h2>Nebezpečná zóna</h2>
+    <button class="btn danger" onclick="wipe()">Vymazať všetky dáta</button></div>`;
+}
+function expData(){
+  const blob=new Blob([JSON.stringify(S,null,1)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='ms2026-tipovacka-zaloha-'+new Date().toISOString().slice(0,10)+'.json';
+  a.
