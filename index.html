@@ -15,7 +15,9 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:15px}
 header{background:var(--acc2);color:#fff;padding:14px 16px 0;position:sticky;top:0;z-index:50}
-header h1{font-size:18px;margin-bottom:10px}
+header h1{font-size:18px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+#conn{font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;background:#475569;color:#cbd5e1}
+#conn.on{background:#166534;color:#dcfce7}
 nav{display:flex;gap:4px;overflow-x:auto}
 nav button{background:transparent;border:none;color:#cbd5e1;padding:10px 14px;font-size:14px;cursor:pointer;border-radius:8px 8px 0 0;white-space:nowrap}
 nav button.act{background:var(--bg);color:var(--ink);font-weight:600}
@@ -60,14 +62,27 @@ h2{font-size:16px;margin-bottom:10px}
 </head>
 <body>
 <header>
-  <h1>⚽ MS 2026 – Tipovačka</h1>
+  <h1>⚽ MS 2026 – Tipovačka <span id="conn">pripájam…</span></h1>
   <nav id="nav"></nav>
 </header>
-<main id="app"></main>
+<main id="app"><div class="box"><h2>Načítavam dáta…</h2></div></main>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
 <script>
 'use strict';
+// ---------- FIREBASE (zdieľané dáta pre všetkých) ----------
+firebase.initializeApp({
+  apiKey:"AIzaSyASKZbfzO6NmoBYmXUaaIywSAEQx4mn2Os",
+  authDomain:"ms2026-tipovacka-a8ade.firebaseapp.com",
+  databaseURL:"https://ms2026-tipovacka-a8ade-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId:"ms2026-tipovacka-a8ade",
+  storageBucket:"ms2026-tipovacka-a8ade.firebasestorage.app",
+  messagingSenderId:"530532379833",
+  appId:"1:530532379833:web:64cc358858f1a2de093f68"
+});
+const DB=firebase.database(),ROOT=DB.ref('tipovacka');
+
 // ---------- DÁTA: 104 zápasov MS 2026 (časy v UTC, zobrazujú sa v lokálnom čase) ----------
-// [id, štádium, skupina, UTC čas, domáci, hostia, mesto]
 const M=[
 [1,"G","A","2026-06-11T19:00Z","Mexiko","Južná Afrika","Mexico City"],
 [2,"G","A","2026-06-12T02:00Z","Kórejská rep.","Česko","Guadalajara"],
@@ -177,28 +192,41 @@ const M=[
 const STAGE={G:"Skupina",R32:"Šestnásťfinále",R16:"Osemfinále",QF:"Štvrťfinále",SF:"Semifinále","3RD":"O 3. miesto",F:"Finále"};
 const TEAMS=[...new Set(M.filter(m=>m[1]==="G").flatMap(m=>[m[4],m[5]]))].sort((a,b)=>a.localeCompare(b,'sk'));
 
-// ---------- STAV ----------
-const LS='ms2026tipy_v1';
-let S=load();
-function load(){
-  try{const d=JSON.parse(localStorage.getItem(LS));if(d&&d.players)return d}catch(e){}
-  return {players:[],koTeams:{},results:{},tips:{},tour:{tips:{},winner:'',scorers:''}};
+// ---------- STAV (synchronizovaný z Firebase) ----------
+let S={players:[],koTeams:{},results:{},tips:{},tour:{tips:{},winner:'',scorers:''}},READY=false,PENDING=false;
+function fromSnap(d){
+  d=d||{};
+  const pl=Object.entries(d.players||{}).map(([k,v])=>({k,n:(v&&v.n)||k,t:(v&&v.t)||0})).sort((a,b)=>a.t-b.t);
+  S={players:pl,koTeams:d.koTeams||{},results:d.results||{},tips:d.tips||{},
+     tour:{tips:(d.tour&&d.tour.tips)||{},winner:(d.tour&&d.tour.winner)||'',scorers:(d.tour&&d.tour.scorers)||''}};
 }
-function save(){localStorage.setItem(LS,JSON.stringify(S))}
+ROOT.on('value',snap=>{
+  fromSnap(snap.val());READY=true;
+  const ae=document.activeElement;
+  if(ae&&ae.tagName==='INPUT'&&document.getElementById('app').contains(ae)){PENDING=true}
+  else render();
+});
+document.addEventListener('focusout',()=>{if(PENDING){PENDING=false;setTimeout(render,50)}});
+DB.ref('.info/connected').on('value',s=>{
+  const c=document.getElementById('conn');
+  if(s.val()){c.textContent='online';c.className='on'}else{c.textContent='offline';c.className=''}
+});
 
 // ---------- POMOCNÉ ----------
 const norm=s=>(s||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
 const esc=s=>(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function teamsOf(m){if(m[1]==="G")return[m[4],m[5]];const t=S.koTeams[m[0]]||['',''];return[t[0]||'',t[1]||'']}
+const pkey=n=>n.trim().replace(/[.#$/\[\]]/g,'_');
+const pname=k=>{const p=S.players.find(x=>x.k===k);return p?p.n:k};
+function teamsOf(m){if(m[1]==="G")return[m[4],m[5]];const t=S.koTeams[m[0]]||{};return[t.h||'',t.a||'']}
 function scorerHit(tip,scorers){
   const t=norm(tip);if(!t)return false;
   return scorers.split(',').map(norm).filter(Boolean).some(s=>s===t||s.includes(t)||t.includes(s));
 }
 // Bodovanie: presný výsledok 3 b (inak správny víťaz/remíza 1 b) + strelec v zápase 2 b
-function matchPts(mid,player){
+function matchPts(mid,k){
   const r=S.results[mid];
   if(!r||r.h===''||r.h==null||r.a===''||r.a==null)return null;
-  const tp=(S.tips[mid]||{})[player];
+  const tp=(S.tips[mid]||{})[k];
   const d={w:0,e:0,s:0,p:0};
   if(tp&&tp.h!==''&&tp.h!=null&&tp.a!==''&&tp.a!=null){
     const th=+tp.h,ta=+tp.a,rh=+r.h,ra=+r.a;
@@ -208,10 +236,10 @@ function matchPts(mid,player){
   if(tp&&tp.s&&r.sc&&scorerHit(tp.s,r.sc)){d.s=1;d.p+=2}
   return d;
 }
-function totals(player){
+function totals(k){
   const t={matches:0,w:0,e:0,s:0,bw:0,bs:0,total:0};
-  for(const m of M){const d=matchPts(m[0],player);if(d){t.matches+=d.p;t.w+=d.w;t.e+=d.e;t.s+=d.s}}
-  const tt=S.tour.tips[player]||{};
+  for(const m of M){const d=matchPts(m[0],k);if(d){t.matches+=d.p;t.w+=d.w;t.e+=d.e;t.s+=d.s}}
+  const tt=S.tour.tips[k]||{};
   if(S.tour.winner&&tt.winner&&norm(tt.winner)===norm(S.tour.winner))t.bw=10;
   if(S.tour.scorers&&tt.scorer&&scorerHit(tt.scorer,S.tour.scorers))t.bs=8;
   t.total=t.matches+t.bw+t.bs;
@@ -232,6 +260,7 @@ function setTab(t){TAB=t;render()}
 function setFilter(f){FILTER=f;render()}
 function render(){
   renderNav();
+  if(!READY)return;
   const app=$('app');
   if(TAB==='matches')app.innerHTML=vMatches();
   else if(TAB==='tour')app.innerHTML=vTour();
@@ -276,8 +305,8 @@ function vMatchCard(m){
     html+=`<div class="mbody">`;
     if(m[1]!=='G'){
       html+=`<div class="sect">Tímy (doplň po žrebe/postupe)</div><div class="row">
-        <input style="flex:1" placeholder="Domáci" value="${esc(h)}" onchange="setKoTeam(${id},0,this.value)">
-        <input style="flex:1" placeholder="Hostia" value="${esc(a)}" onchange="setKoTeam(${id},1,this.value)"></div>`;
+        <input style="flex:1" placeholder="Domáci" value="${esc(h)}" onchange="setKoTeam(${id},'h',this.value)">
+        <input style="flex:1" placeholder="Hostia" value="${esc(a)}" onchange="setKoTeam(${id},'a',this.value)"></div>`;
     }
     html+=`<div class="sect">Výsledok zápasu</div><div class="row">
       <input class="g" type="number" min="0" placeholder="–" value="${r?esc(String(r.h??'')):''}" onchange="setRes(${id},'h',this.value)"> :
@@ -287,11 +316,11 @@ function vMatchCard(m){
       <div class="sect">Tipy hráčov</div>
       <table><tr><th>Hráč</th><th>Tip</th><th>Strelec</th><th>Body</th></tr>`;
     for(const p of S.players){
-      const tp=(S.tips[id]||{})[p]||{},d=matchPts(id,p);
+      const tp=(S.tips[id]||{})[p.k]||{},d=matchPts(id,p.k);
       const pts=d==null?'<span class="muted">–</span>':`<span class="pts ${d.p?'':'zero'}">${d.p} b${d.p?` (${[d.e?'presný':'',d.w?'víťaz':'',d.s?'strelec':''].filter(Boolean).join('+')})`:''}</span>`;
-      html+=`<tr><td><b>${esc(p)}</b></td>
-        <td style="white-space:nowrap"><input class="g" type="number" min="0" placeholder="–" value="${tp.h??''}" onchange="setTip(${id},'${esc(p)}','h',this.value)"> : <input class="g" type="number" min="0" placeholder="–" value="${tp.a??''}" onchange="setTip(${id},'${esc(p)}','a',this.value)"></td>
-        <td><input class="sc" placeholder="strelec" value="${esc(tp.s||'')}" onchange="setTip(${id},'${esc(p)}','s',this.value)"></td>
+      html+=`<tr><td><b>${esc(p.n)}</b></td>
+        <td style="white-space:nowrap"><input class="g" type="number" min="0" placeholder="–" value="${tp.h??''}" onchange="setTip(${id},'${esc(p.k)}','h',this.value)"> : <input class="g" type="number" min="0" placeholder="–" value="${tp.a??''}" onchange="setTip(${id},'${esc(p.k)}','a',this.value)"></td>
+        <td><input class="sc" placeholder="strelec" value="${esc(tp.s||'')}" onchange="setTip(${id},'${esc(p.k)}','s',this.value)"></td>
         <td>${pts}</td></tr>`;
     }
     html+=`</table></div>`;
@@ -299,10 +328,18 @@ function vMatchCard(m){
   return html+`</div>`;
 }
 function toggle(id){OPEN.has(id)?OPEN.delete(id):OPEN.add(id);render()}
-function setKoTeam(id,i,v){const t=S.koTeams[id]||['',''];t[i]=v.trim();S.koTeams[id]=t;save();render()}
-function setRes(id,k,v){const r=S.results[id]||{h:'',a:'',sc:''};r[k]=k==='sc'?v:(v===''?'':+v);S.results[id]=r;save();render()}
-function clearRes(id){if(confirm('Vymazať výsledok zápasu?')){delete S.results[id];save();render()}}
-function setTip(id,p,k,v){const t=S.tips[id]||{};const tp=t[p]||{h:'',a:'',s:''};tp[k]=k==='s'?v:(v===''?'':+v);t[p]=tp;S.tips[id]=t;save();render()}
+function setKoTeam(id,f,v){ROOT.child(`koTeams/${id}/${f}`).set(v.trim())}
+function setRes(id,k,v){
+  const r=S.results[id]||{h:'',a:'',sc:''};
+  r[k]=k==='sc'?v:(v===''?'':+v);
+  ROOT.child(`results/${id}`).set(r);
+}
+function clearRes(id){if(confirm('Vymazať výsledok zápasu?'))ROOT.child(`results/${id}`).remove()}
+function setTip(id,pk,k,v){
+  const t=(S.tips[id]||{})[pk]||{h:'',a:'',s:''};
+  t[k]=k==='s'?v:(v===''?'':+v);
+  ROOT.child(`tips/${id}/${pk}`).set(t);
+}
 
 // ---- Turnaj ----
 function vTour(){
@@ -312,11 +349,11 @@ function vTour(){
     <p class="note">Celkový víťaz = <b>10 bodov</b>, najlepší strelec turnaja = <b>8 bodov</b>.</p>
     <table><tr><th>Hráč</th><th>Majster sveta</th><th>Najlepší strelec</th><th>Body</th></tr>`;
   for(const p of S.players){
-    const tt=S.tour.tips[p]||{},t=totals(p);
+    const tt=S.tour.tips[p.k]||{},t=totals(p.k);
     const b=(t.bw?`+10`:'')+(t.bs?` +8`:'');
-    html+=`<tr><td><b>${esc(p)}</b></td>
-      <td><select onchange="setTour('${esc(p)}','winner',this.value)">${opts(tt.winner||'')}</select></td>
-      <td><input placeholder="meno hráča" value="${esc(tt.scorer||'')}" onchange="setTour('${esc(p)}','scorer',this.value)"></td>
+    html+=`<tr><td><b>${esc(p.n)}</b></td>
+      <td><select onchange="setTour('${esc(p.k)}','winner',this.value)">${opts(tt.winner||'')}</select></td>
+      <td><input placeholder="meno hráča" value="${esc(tt.scorer||'')}" onchange="setTour('${esc(p.k)}','scorer',this.value)"></td>
       <td class="pts">${b||'<span class="muted">–</span>'}</td></tr>`;
   }
   html+=`</table></div>
@@ -327,18 +364,18 @@ function vTour(){
     <input style="flex:1" placeholder="mená oddelené čiarkou (ak ich je viac)" value="${esc(S.tour.scorers)}" onchange="setTourScorers(this.value)"></div></div>`;
   return html;
 }
-function setTour(p,k,v){const t=S.tour.tips[p]||{};t[k]=v;S.tour.tips[p]=t;save();render()}
-function setTourWinner(v){S.tour.winner=v;save();render()}
-function setTourScorers(v){S.tour.scorers=v;save();render()}
+function setTour(pk,k,v){ROOT.child(`tour/tips/${pk}/${k}`).set(v)}
+function setTourWinner(v){ROOT.child('tour/winner').set(v)}
+function setTourScorers(v){ROOT.child('tour/scorers').set(v)}
 
 // ---- Rebríček ----
 function vBoard(){
   if(!S.players.length)return `<div class="box"><h2>Žiadni hráči</h2></div>`;
-  const rows=S.players.map(p=>({p,...totals(p)})).sort((a,b)=>b.total-a.total);
+  const rows=S.players.map(p=>({n:p.n,...totals(p.k)})).sort((a,b)=>b.total-a.total);
   let html=`<div class="box"><h2>🏆 Rebríček</h2>
     <table><tr><th>#</th><th>Hráč</th><th>Víťaz<br>(1 b)</th><th>Presný<br>(3 b)</th><th>Strelec<br>(2 b)</th><th>Bonus</th><th>Spolu</th></tr>`;
   rows.forEach((r,i)=>{
-    html+=`<tr class="${i===0&&r.total>0?'rank1':''}"><td>${i+1}.</td><td><b>${esc(r.p)}</b></td>
+    html+=`<tr class="${i===0&&r.total>0?'rank1':''}"><td>${i+1}.</td><td><b>${esc(r.n)}</b></td>
       <td>${r.w}×</td><td>${r.e}×</td><td>${r.s}×</td><td>${r.bw+r.bs||0}</td><td class="pts">${r.total}</td></tr>`;
   });
   html+=`</table><p class="note">Presný výsledok = 3 b (víťaz sa už nepočíta). Správny víťaz/remíza = 1 b. Strelec v zápase = 2 b (počíta sa nezávisle, max 5 b za zápas).</p></div>`;
@@ -353,7 +390,7 @@ function vPlayers(){
   if(!S.players.length)html+=`<p class="note">Zatiaľ žiadni hráči.</p>`;
   else{
     html+=`<table>`;
-    for(const p of S.players)html+=`<tr><td><b>${esc(p)}</b></td><td style="text-align:right"><button class="del" onclick="delPlayer('${esc(p)}')">✕ odstrániť</button></td></tr>`;
+    for(const p of S.players)html+=`<tr><td><b>${esc(p.n)}</b></td><td style="text-align:right"><button class="del" onclick="delPlayer('${esc(p.k)}')">✕ odstrániť</button></td></tr>`;
     html+=`</table>`;
   }
   return html+`</div>`;
@@ -361,24 +398,26 @@ function vPlayers(){
 function addPlayer(){
   const v=$('np').value.trim();
   if(!v)return;
-  if(S.players.some(p=>norm(p)===norm(v))){alert('Hráč s týmto menom už existuje.');return}
-  S.players.push(v);save();render();
+  const k=pkey(v);
+  if(S.players.some(p=>norm(p.n)===norm(v)||p.k===k)){alert('Hráč s týmto menom už existuje.');return}
+  ROOT.child(`players/${k}`).set({n:v,t:Date.now()});
 }
-function delPlayer(p){
-  if(!confirm('Odstrániť hráča „'+p+'" aj so všetkými jeho tipmi?'))return;
-  S.players=S.players.filter(x=>x!==p);
-  for(const id in S.tips)delete S.tips[id][p];
-  delete S.tour.tips[p];
-  save();render();
+function delPlayer(k){
+  if(!confirm('Odstrániť hráča „'+pname(k)+'" aj so všetkými jeho tipmi?'))return;
+  const upd={};
+  upd[`players/${k}`]=null;
+  upd[`tour/tips/${k}`]=null;
+  for(const m of M)upd[`tips/${m[0]}/${k}`]=null;
+  ROOT.update(upd);
 }
 
 // ---- Dáta ----
 function vData(){
   const n=Object.keys(S.results).length;
-  return `<div class="box"><h2>Záloha dát</h2>
-    <p class="note">Dáta sa ukladajú v tomto prehliadači automaticky. Na prenos do iného zariadenia alebo pre istotu si pravidelne sťahuj zálohu.</p>
+  return `<div class="box"><h2>Zdieľané dáta</h2>
+    <p class="note">Dáta sú uložené online (Firebase) a aktualizujú sa všetkým okamžite. Každý s adresou stránky môže zapisovať — funguje to na dôvere v partii.</p>
     <div class="row"><button class="btn" onclick="expData()">⬇ Stiahnuť zálohu (JSON)</button>
-    <label class="btn sec" style="cursor:pointer">⬆ Nahrať zálohu<input type="file" accept=".json" style="display:none" onchange="impData(this)"></label></div>
+    <label class="btn sec" style="cursor:pointer">⬆ Obnoviť zo zálohy<input type="file" accept=".json" style="display:none" onchange="impData(this)"></label></div>
     <p class="note">${S.players.length} hráčov · ${n} zápasov s výsledkom</p></div>
     <div class="box"><h2>Pravidlá bodovania</h2>
     <p class="note">• Správny víťaz zápasu (alebo remíza): <b>1 bod</b><br>
@@ -390,11 +429,13 @@ function vData(){
     <button class="btn danger" onclick="wipe()">Vymazať všetky dáta</button></div>`;
 }
 function expData(){
-  const blob=new Blob([JSON.stringify(S,null,1)],{type:'application/json'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download='ms2026-tipovacka-zaloha-'+new Date().toISOString().slice(0,10)+'.json';
-  a.click();
+  ROOT.get().then(snap=>{
+    const blob=new Blob([JSON.stringify(snap.val()||{},null,1)],{type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='ms2026-tipovacka-zaloha-'+new Date().toISOString().slice(0,10)+'.json';
+    a.click();
+  });
 }
 function impData(inp){
   const f=inp.files[0];if(!f)return;
@@ -402,19 +443,17 @@ function impData(inp){
   rd.onload=()=>{
     try{
       const d=JSON.parse(rd.result);
-      if(!d.players||!d.tour)throw 0;
-      if(confirm('Nahradiť všetky aktuálne dáta zálohou?')){S=d;save();render()}
+      if(typeof d!=='object'||d===null)throw 0;
+      if(confirm('Nahradiť VŠETKY online dáta touto zálohou? Zmení sa to všetkým hráčom.'))ROOT.set(d);
     }catch(e){alert('Neplatný súbor zálohy.')}
   };
   rd.readAsText(f);
 }
 function wipe(){
-  if(confirm('Naozaj vymazať VŠETKY dáta (hráčov, tipy aj výsledky)?')&&confirm('Posledné varovanie – dáta sa nedajú obnoviť. Pokračovať?')){
-    localStorage.removeItem(LS);S=load();render();
-  }
+  if(confirm('Naozaj vymazať VŠETKY dáta (hráčov, tipy aj výsledky)? Zmaže sa to všetkým!')&&confirm('Posledné varovanie – dáta sa nedajú obnoviť. Pokračovať?'))ROOT.remove();
 }
 window.setTab=setTab;window.setFilter=setFilter;window.toggle=toggle;window.setKoTeam=setKoTeam;window.setRes=setRes;window.clearRes=clearRes;window.setTip=setTip;window.setTour=setTour;window.setTourWinner=setTourWinner;window.setTourScorers=setTourScorers;window.addPlayer=addPlayer;window.delPlayer=delPlayer;window.expData=expData;window.impData=impData;window.wipe=wipe;
-render();
+renderNav();
 </script>
 </body>
 </html>
